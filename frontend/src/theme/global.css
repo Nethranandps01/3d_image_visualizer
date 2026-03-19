@@ -1,0 +1,211 @@
+/* Global styles */
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  height: 100%;
+}
+
+/* Camera preview container */
+.camera-container {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  border-radius: 16px;
+  overflow: hidden;
+  background-color: var(--ion-color-dark);
+}
+
+.camera-preview {
+  width: 100%;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  display: block;
+}
+
+/* Result image */
+.result-image {
+  width: 100%;
+  max-width: 600px;
+  border-radius: 16px;
+  margin: 0 auto;
+  display: block;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* Measurement cards */
+.measurement-card {
+  margin: 16px;
+  border-radius: 16px;
+}
+
+.measurement-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--ion-color-primary);
+}
+
+.measurement-label {
+  font-size: 0.9rem;
+  color: var(--ion-color-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Loading overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.loading-overlay ion-spinner {
+  --color: white;
+  width: 64px;
+  height: 64px;
+}
+
+.loading-overlay p {
+  color: white;
+  margin-top: 16px;
+  font-size: 1.1rem;
+}
+
+/* Instructions */
+.instructions {
+  padding: 20px;
+  text-align: center;
+}
+
+.instructions h2 {
+  margin-bottom: 16px;
+  color: var(--ion-color-dark);
+}
+
+.instructions-list {
+  text-align: left;
+  padding: 0 20px;
+}
+
+.instructions-list li {
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+/* Capture button */
+.capture-button {
+  --border-radius: 50%;
+  width: 80px;
+  height: 80px;
+  margin: 20px auto;
+}
+
+.capture-button ion-icon {
+  font-size: 36px;
+}
+
+/* Object list */
+.object-item {
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --inner-padding-end: 0;
+}
+
+.object-dimensions {
+  display: flex;
+  gap: 24px;
+}
+
+.dimension {
+  text-align: center;
+}
+
+.dimension-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--ion-color-primary);
+}
+
+.dimension-label {
+  font-size: 0.75rem;
+  color: var(--ion-color-medium);
+}
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.empty-state ion-icon {
+  font-size: 80px;
+  color: var(--ion-color-medium);
+  margin-bottom: 20px;
+}
+
+.empty-state h3 {
+  margin-bottom: 8px;
+  color: var(--ion-color-dark);
+}
+
+.empty-state p {
+  color: var(--ion-color-medium);
+  max-width: 280px;
+}
+
+/* Fab button styling */
+ion-fab-button {
+  --box-shadow: 0 4px 16px rgba(56, 128, 255, 0.4);
+}
+
+/* Card animations */
+ion-card {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Safe area padding */
+ion-content {
+  --padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Error message */
+.error-message {
+  background-color: var(--ion-color-danger-tint);
+  color: var(--ion-color-danger-contrast);
+  padding: 16px;
+  border-radius: 8px;
+  margin: 16px;
+  text-align: center;
+}
