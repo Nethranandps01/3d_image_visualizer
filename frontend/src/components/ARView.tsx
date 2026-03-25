@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
-import { IonButton, IonIcon, IonFab, IonFabButton, IonBadge } from '@ionic/react';
+import { IonIcon, IonFab, IonFabButton } from '@ionic/react';
 import { addOutline, checkmarkOutline, refreshOutline, closeOutline } from 'ionicons/icons';
 import { Vector3D, calculate3DDistance, toCm } from '../services/ar';
 

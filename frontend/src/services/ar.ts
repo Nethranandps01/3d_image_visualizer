@@ -3,7 +3,7 @@
  * Handles coordinate systems and distance calculations
  */
 
-import * as THREE from 'three';
+// import * as THREE from 'three'; // Removed unused import
 
 export interface Vector3D {
   x: number;
