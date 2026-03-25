@@ -35,7 +35,8 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
       0.1,
       1000
     );
-    camera.position.z = 5;
+    camera.position.set(0, 5, 5); // Angle the camera down for a better 3D view
+    camera.lookAt(0, 0, 0);
     cameraRef.current = camera;
 
     // Initialize Renderer
@@ -54,9 +55,22 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
     scene.add(lines);
     linesRef.current = lines;
 
+    // --- NEW: Ground Grid ---
+    const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
+    gridHelper.position.y = -2; // Simulate a floor
+    scene.add(gridHelper);
+
+    // --- NEW: Box Projection Support ---
+    const boxGroup = new THREE.Group();
+    scene.add(boxGroup);
+
     // Lights
-    const light = new THREE.AmbientLight(0xffffff, 1);
-    scene.add(light);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    scene.add(ambientLight);
+    
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(5, 10, 5);
+    scene.add(directionalLight);
 
     // Animation Loop
     const animate = () => {
@@ -84,34 +98,70 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
   const addPoint = useCallback(() => {
     if (!cameraRef.current || !sceneRef.current || !markersRef.current) return;
 
-    // In a real AR app, this would use a Raycaster against a detected plane.
-    // For this mock/foundational version, we place points at a fixed depth.
-    const vector = new THREE.Vector3(0, 0, -3); // Place point 3 units in front
-    vector.unproject(cameraRef.current);
+    // Simulate placing a point on the ground plane
+    // For this foundational version, we place points at Y = -2 (the grid level)
+    const vector = new THREE.Vector3(
+      (Math.random() - 0.5) * 4, // Random X spread
+      -2,                         // Fixed Y (floor)
+      (Math.random() - 0.5) * 4  // Random Z spread
+    );
     
     const newPoint: Vector3D = { x: vector.x, y: vector.y, z: vector.z };
     const newPoints = [...points, newPoint];
     setPoints(newPoints);
 
-    // Add visual marker
-    const geometry = new THREE.SphereGeometry(0.1, 32, 32);
-    const material = new THREE.MeshBasicMaterial({ color: 0x007aff });
+    // Add visual marker (Premium Sphere)
+    const geometry = new THREE.SphereGeometry(0.08, 32, 32);
+    const material = new THREE.MeshPhongMaterial({ 
+      color: 0x3b82f6, 
+      emissive: 0x1d4ed8,
+      shininess: 100 
+    });
     const sphere = new THREE.Mesh(geometry, material);
-    sphere.position.set(vector.x, vector.y, vector.z);
+    sphere.position.copy(vector);
     markersRef.current.add(sphere);
 
-    // Draw line to previous point if exists
-    if (newPoints.length > 1 && linesRef.current) {
-      const prev = newPoints[newPoints.length - 2];
-      const lineGeom = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(prev.x, prev.y, prev.z),
-        new THREE.Vector3(newPoint.x, newPoint.y, newPoint.z)
-      ]);
-      const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 });
-      const line = new THREE.Line(lineGeom, lineMat);
-      linesRef.current.add(line);
+    // --- NEW: Dynamic Bounding Box Projection ---
+    if (newPoints.length >= 2) {
+      // Clear old lines/box
+      if (linesRef.current) linesRef.current.clear();
+
+      // Create a Box encompassing all points
+      const box = new THREE.Box3();
+      newPoints.forEach(p => box.expandByPoint(new THREE.Vector3(p.x, p.y, p.z)));
       
-      const dist = calculate3DDistance(prev, newPoint);
+      // If we have points at the same Y, give the box some height for visualization
+      if (box.max.y === box.min.y) {
+        box.max.y += 1.5; // Simulate 15cm height
+      }
+
+      const center = new THREE.Vector3();
+      box.getCenter(center);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      
+      const boxGeom = new THREE.BoxGeometry(size.x, size.y, size.z);
+      const boxMat = new THREE.MeshPhongMaterial({ 
+        color: 0x3b82f6, 
+        transparent: true, 
+        opacity: 0.2,
+        side: THREE.DoubleSide
+      });
+      const boxMesh = new THREE.Mesh(boxGeom, boxMat);
+      boxMesh.position.copy(center);
+      
+      // Add wireframe
+      const wireframe = new THREE.BoxHelper(boxMesh, 0xffffff);
+      
+      if (linesRef.current) {
+        linesRef.current.add(boxMesh);
+        linesRef.current.add(wireframe);
+      }
+
+      // Calculate the most relevant distance (e.g. width)
+      const p1 = newPoints[0];
+      const p2 = newPoints[newPoints.length - 1];
+      const dist = calculate3DDistance(p1, p2);
       setCurrentDistance(toCm(dist));
     }
   }, [points]);

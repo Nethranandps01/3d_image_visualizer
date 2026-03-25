@@ -19,7 +19,6 @@ import {
   refreshOutline,
   checkmarkCircle,
   alertCircle,
-  resizeOutline,
   scanOutline,
 } from 'ionicons/icons';
 import { useState, useCallback, useEffect } from 'react';
@@ -139,7 +138,7 @@ const HomePage: React.FC = () => {
       flexDirection: 'column',
       minHeight: '100%',
       padding: '20px',
-      background: '#f5f7fb',
+      background: '#0f172a', // Dark premium background
     }}>
       {/* Hero Section */}
       <div style={{
@@ -152,74 +151,80 @@ const HomePage: React.FC = () => {
         padding: '40px 20px',
       }}>
         <div style={{
-          width: '120px',
-          height: '120px',
-          borderRadius: '30px',
-          background: '#ffffff',
-          border: '1px solid #e5e7eb',
+          width: '140px',
+          height: '140px',
+          borderRadius: '40px',
+          background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           marginBottom: '30px',
-          boxShadow: '0 10px 30px rgba(15, 23, 42, 0.08)',
+          boxShadow: '0 20px 40px rgba(59, 130, 246, 0.3)',
+          position: 'relative',
         }}>
-          <IonIcon icon={resizeOutline} style={{ fontSize: '60px', color: '#0f172a' }} />
+          <IonIcon icon={scanOutline} style={{ fontSize: '70px', color: '#ffffff' }} />
+          <div style={{
+            position: 'absolute',
+            bottom: '-10px',
+            right: '-10px',
+            background: '#ffffff',
+            borderRadius: '12px',
+            padding: '4px 8px',
+            fontSize: '12px',
+            fontWeight: '700',
+            color: '#0f172a',
+            boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
+          }}>3D AR</div>
         </div>
         
         <h1 style={{
-          color: '#0f172a',
-          fontSize: '32px',
-          fontWeight: '700',
+          color: '#ffffff',
+          fontSize: '36px',
+          fontWeight: '800',
           margin: '0 0 12px 0',
+          letterSpacing: '-0.5px'
         }}>
-          Object Measure
+          3D AR Measure
         </h1>
         
         <p style={{
-          color: '#475569',
-          fontSize: '16px',
+          color: '#94a3b8',
+          fontSize: '17px',
           margin: '0 0 40px 0',
-          maxWidth: '280px',
-          lineHeight: '1.5',
+          maxWidth: '300px',
+          lineHeight: '1.6',
         }}>
-          Measure real objects instantly using your camera and an A4 paper reference
+          Capture real-world dimensions and volume instantly with spatial tracking
         </p>
       </div>
 
       {/* Instructions Card */}
       <div style={{
-        background: '#ffffff',
-        borderRadius: '20px',
+        background: 'rgba(30, 41, 59, 0.7)',
+        borderRadius: '24px',
         padding: '24px',
-        marginBottom: '24px',
-        border: '1px solid #e5e7eb',
-        boxShadow: '0 10px 30px rgba(15, 23, 42, 0.06)',
+        marginBottom: '28px',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(10px)',
       }}>
-        <h3 style={{ color: '#0f172a', margin: '0 0 16px 0', fontSize: '18px' }}>
-          How it works
+        <h3 style={{ color: '#ffffff', margin: '0 0 20px 0', fontSize: '18px', fontWeight: '600' }}>
+          Spatial Marking
         </h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {[
-            { num: '1', text: 'Place objects on an A4 paper' },
-            { num: '2', text: 'Take a photo from above' },
-            { num: '3', text: 'Get measurements in cm' },
-          ].map((step) => (
-            <div key={step.num} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            { num: '🎚️', text: 'Point reticle at the floor & object' },
+            { num: '📍', text: 'Tap [+] to mark object corners' },
+            { num: '📦', text: 'Verify the 3D box projection' },
+          ].map((step, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <div style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: '50%',
-                background: '#0f172a',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: '14px',
-                fontWeight: '600',
+                fontSize: '20px',
+                width: '32px',
+                textAlign: 'center'
               }}>
                 {step.num}
               </div>
-                <span style={{ color: '#334155', fontSize: '15px' }}>
+                <span style={{ color: '#cbd5e1', fontSize: '15px', fontWeight: '500' }}>
                   {step.text}
                 </span>
               </div>
@@ -228,70 +233,73 @@ const HomePage: React.FC = () => {
       </div>
 
       {/* Action Buttons */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingBottom: '20px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '30px' }}>
         <IonButton
           expand="block"
           size="large"
-          onClick={handleCapturePhoto}
+          onClick={() => setIsARMode(true)}
           style={{
-            '--background': '#0f172a',
-            '--color': '#ffffff',
-            '--border-radius': '16px',
-            '--box-shadow': '0 10px 24px rgba(15, 23, 42, 0.15)',
-            height: '56px',
-            fontSize: '17px',
-            fontWeight: '600',
+            '--background': '#ffffff',
+            '--color': '#0f172a',
+            '--border-radius': '20px',
+            '--box-shadow': '0 15px 35px rgba(255, 255, 255, 0.1)',
+            height: '64px',
+            fontSize: '18px',
+            fontWeight: '700',
           }}
         >
-          <IonIcon slot="start" icon={camera} />
-          Take Photo
+          <IonIcon slot="start" icon={scanOutline} />
+          Start 3D AR Measurement
         </IonButton>
         
-        <IonButton
-          expand="block"
-          size="large"
-          fill="outline"
-          onClick={handlePickFromGallery}
-          style={{
-            '--border-radius': '16px',
-            '--border-color': '#cbd5e1',
-            '--color': '#0f172a',
-            height: '56px',
-            fontSize: '17px',
-            fontWeight: '600',
-          }}
-        >
-          <IonIcon slot="start" icon={images} />
-          Choose from Gallery
-        </IonButton>
-
         <div style={{
           display: 'flex',
           alignItems: 'center',
           gap: '12px',
-          marginTop: '12px'
+          margin: '8px 0'
         }}>
-          <div style={{ flex: 1, height: '1px', background: '#e2e8f0' }} />
-          <span style={{ color: '#94a3b8', fontSize: '13px', fontWeight: '500' }}>OR TRY 3D</span>
-          <div style={{ flex: 1, height: '1px', background: '#e2e8f0' }} />
+          <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+          <span style={{ color: '#64748b', fontSize: '12px', fontWeight: '600', letterSpacing: '1px' }}>LEGACY MODE</span>
+          <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
         </div>
 
-        <IonButton
-          expand="block"
-          size="large"
-          fill="clear"
-          onClick={() => setIsARMode(true)}
-          style={{
-            '--color': '#0f172a',
-            height: '56px',
-            fontSize: '17px',
-            fontWeight: '600',
-            marginTop: '8px'
-          }}
-        >
-          <IonIcon slot="start" icon={scanOutline} />
-          Switch to 3D AR Mode
-        </IonButton>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <IonButton
+            expand="block"
+            fill="clear"
+            onClick={handleCapturePhoto}
+            style={{
+              flex: 1,
+              '--color': '#94a3b8',
+              '--border-radius': '16px',
+              height: '50px',
+              fontSize: '14px',
+              fontWeight: '600',
+              background: 'rgba(255,255,255,0.03)',
+            }}
+          >
+            <IonIcon slot="start" icon={camera} />
+            2D Photo
+          </IonButton>
+          
+          <IonButton
+            expand="block"
+            fill="clear"
+            onClick={handlePickFromGallery}
+            style={{
+              flex: 1,
+              '--color': '#94a3b8',
+              '--border-radius': '16px',
+              height: '50px',
+              fontSize: '14px',
+              fontWeight: '600',
+              background: 'rgba(255,255,255,0.03)',
+            }}
+          >
+            <IonIcon slot="start" icon={images} />
+            Gallery
+          </IonButton>
+        </div>
       </div>
     </div>
   );
