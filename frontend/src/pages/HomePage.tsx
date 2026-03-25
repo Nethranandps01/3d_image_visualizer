@@ -17,7 +17,6 @@ import ARView from '../components/ARView';
 
 const HomePage: React.FC = () => {
   const [isARMode, setIsARMode] = useState(false);
-  
   const [presentToast] = useIonToast();
 
   // Request camera permission on mount
@@ -35,201 +34,80 @@ const HomePage: React.FC = () => {
     setIsARMode(false);
   };
 
-      {/* Result Image */}
-      {resultImage && (
-        <IonCard style={{
-          margin: '0 0 16px 0',
-          borderRadius: '20px',
-          overflow: 'hidden',
-          background: '#ffffff',
-          border: '1px solid #e5e7eb',
-        }}>
-          <img 
-            src={resultImage} 
-            alt="Measurement result" 
-            style={{ width: '100%', display: 'block' }}
-          />
-        </IonCard>
-      )}
-
-      {/* Measurements List */}
-      {measurements.length > 0 && (
-        <IonCard style={{
-          margin: '0 0 16px 0',
-          borderRadius: '20px',
-          background: '#ffffff',
-          border: '1px solid #e5e7eb',
-        }}>
-          <IonCardContent>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              marginBottom: '20px',
-            }}>
-              <IonIcon icon={checkmarkCircle} style={{ color: '#16a34a', fontSize: '24px' }} />
-              <h2 style={{ margin: 0, color: '#0f172a', fontSize: '20px' }}>
-                Measurements
-              </h2>
-            </div>
-            
-            {measurements.map((obj, index) => (
-              <div
-                key={index}
-                style={{
-                  background: '#f8fafc',
-                  borderRadius: '16px',
-                  padding: '16px',
-                  marginBottom: index < measurements.length - 1 ? '12px' : 0,
-                  border: '1px solid #e2e8f0',
-                }}
-              >
-                <IonChip style={{
-                  '--background': '#0f172a',
-                  '--color': 'white',
-                  marginBottom: '12px',
-                }}>
-                  Object {index + 1}
-                </IonChip>
-                
-                <div style={{ display: 'flex', gap: '20px' }}>
-                  <div style={{ flex: 1, textAlign: 'center' }}>
-                    <div style={{
-                      fontSize: '32px',
-                      fontWeight: '700',
-                      color: '#0f172a',
-                    }}>
-                      {obj.width_cm}
-                    </div>
-                    <div style={{ color: '#64748b', fontSize: '13px' }}>
-                      Width (cm)
-                    </div>
-                  </div>
-                  <div style={{
-                    width: '1px',
-                    background: 'rgba(255,255,255,0.1)',
-                  }} />
-                  <div style={{ flex: 1, textAlign: 'center' }}>
-                    <div style={{
-                      fontSize: '32px',
-                      fontWeight: '700',
-                      color: '#0f172a',
-                    }}>
-                      {obj.height_cm}
-                    </div>
-                    <div style={{ color: '#64748b', fontSize: '13px' }}>
-                      Height (cm)
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </IonCardContent>
-        </IonCard>
-      )}
-
-      {/* Error Message */}
-      {errorMessage && !measurements.length && (
-        <IonCard style={{
-          margin: '0 0 16px 0',
-          borderRadius: '20px',
-          background: '#fff1f2',
-          border: '1px solid #fecdd3',
-        }}>
-          <IonCardContent>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <IonIcon icon={alertCircle} style={{ fontSize: '32px', color: '#dc2626' }} />
-              <div>
-                <h3 style={{ margin: '0 0 4px 0', color: '#0f172a' }}>Detection Failed</h3>
-                <p style={{ margin: 0, color: '#475569' }}>{errorMessage}</p>
-              </div>
-            </div>
-          </IonCardContent>
-        </IonCard>
-      )}
-
-      {/* Action Buttons */}
-      <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-        <IonButton
-          expand="block"
-          onClick={handleReset}
-          fill="outline"
-          style={{
-            flex: 1,
-            '--border-radius': '14px',
-            '--border-color': '#cbd5e1',
-            '--color': '#0f172a',
-            height: '50px',
-          }}
-        >
-          <IonIcon slot="start" icon={refreshOutline} />
-          Reset
-        </IonButton>
-        
-        <IonButton
-          expand="block"
-          onClick={handleCapturePhoto}
-          style={{
-            flex: 2,
-            '--background': '#0f172a',
-            '--color': '#ffffff',
-            '--border-radius': '14px',
-            height: '50px',
-          }}
-        >
-          <IonIcon slot="start" icon={camera} />
-          New Photo
-        </IonButton>
-      </div>
-    </div>
-  );
-
   return (
     <IonPage>
       <IonHeader>
         <IonToolbar style={{
-          '--background': '#ffffff',
-          '--color': '#0f172a',
-          '--border-color': '#e5e7eb',
+          '--background': '#0f172a',
+          '--color': '#ffffff',
+          '--border-color': 'rgba(255,255,255,0.1)',
         }}>
           <IonTitle>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <IonIcon icon={scanOutline} />
-              Object Measure
+              3D AR Measure
             </div>
           </IonTitle>
         </IonToolbar>
       </IonHeader>
 
-      <IonContent fullscreen style={{ '--background': '#f5f7fb' }}>
-        {/* Loading Overlay */}
-        {isLoading && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.85)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-          }}>
-            <IonSpinner name="crescent" style={{ width: '60px', height: '60px', color: '#0f172a' }} />
-            <p style={{ color: 'white', marginTop: '20px', fontSize: '16px' }}>{loadingText}</p>
-          </div>
-        )}
-
-        {/* Main Content */}
+      <IonContent fullscreen style={{ '--background': '#0f172a' }}>
         {isARMode ? (
           <ARView 
             onConfirm={handleARConfirm} 
             onClose={() => setIsARMode(false)} 
           />
         ) : (
-          !capturedImage && !resultImage ? renderLandingScreen() : renderResults()
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            padding: '40px',
+            textAlign: 'center',
+            background: '#0f172a'
+          }}>
+            <div style={{
+              width: '180px',
+              height: '180px',
+              borderRadius: '50px',
+              background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '40px',
+              boxShadow: '0 25px 50px rgba(59, 130, 246, 0.4)',
+            }}>
+              <IonIcon icon={scanOutline} style={{ fontSize: '90px', color: '#ffffff' }} />
+            </div>
+
+            <h1 style={{ color: '#ffffff', fontSize: '32px', fontWeight: '800', marginBottom: '16px' }}>
+              Pro AR Measure
+            </h1>
+            
+            <p style={{ color: '#94a3b8', fontSize: '18px', lineHeight: '1.6', marginBottom: '50px' }}>
+              The most advanced 3D spatial measurement tool. No reference paper required.
+            </p>
+
+            <button
+              onClick={() => setIsARMode(true)}
+              style={{
+                width: '100%',
+                maxHeight: '70px',
+                padding: '20px',
+                background: '#ffffff',
+                color: '#0f172a',
+                borderRadius: '24px',
+                fontSize: '20px',
+                fontWeight: '700',
+                border: 'none',
+                boxShadow: '0 10px 30px rgba(255,255,255,0.1)'
+              }}
+            >
+              🚀 Launch 3D Camera
+            </button>
+          </div>
         )}
       </IonContent>
     </IonPage>
