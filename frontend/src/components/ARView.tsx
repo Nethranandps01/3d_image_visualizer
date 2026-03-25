@@ -14,6 +14,7 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [points, setPoints] = useState<Vector3D[]>([]);
   const [dims, setDims] = useState({ l: 0, b: 0, h: 0 });
+  const [scaleFactor, setScaleFactor] = useState(2.5); // Default scale multiplier
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -23,6 +24,7 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const markersRef = useRef<THREE.Group | null>(null);
   const linesRef = useRef<THREE.Group | null>(null);
+// ... (Camera Feed and Three.js init remains same)
 
   // Camera Feed Logic
   useEffect(() => {
@@ -155,14 +157,15 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
     if (!cameraRef.current || !sceneRef.current || !markersRef.current) return;
 
     // We place points at a fixed depth to simulate 3D marking
-    const vector = new THREE.Vector3(0, 0, -3); 
+    // Increased default depth to -5 for better room-scale representation
+    const vector = new THREE.Vector3(0, 0, -5); 
     vector.unproject(cameraRef.current);
     
     const newPoint: Vector3D = { x: vector.x, y: vector.y, z: vector.z };
     const newPoints = [...points, newPoint];
     setPoints(newPoints);
 
-    const geometry = new THREE.SphereGeometry(0.08, 32, 32);
+    const geometry = new THREE.SphereGeometry(0.1, 32, 32);
     const material = new THREE.MeshPhongMaterial({ color: 0x3b82f6 });
     const sphere = new THREE.Mesh(geometry, material);
     sphere.position.copy(vector);
@@ -173,9 +176,8 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
       const box = new THREE.Box3();
       newPoints.forEach(p => box.expandByPoint(new THREE.Vector3(p.x, p.y, p.z)));
       
-      // If only 2 points are placed, we give it a default height to show the volume
       if (newPoints.length === 2 && box.max.y === box.min.y) {
-        box.max.y += 0.5; 
+        box.max.y += 0.8; 
       }
 
       const center = new THREE.Vector3();
@@ -194,13 +196,13 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
         linesRef.current.add(wireframe);
       }
 
-      // Calculate L, B, H in CM
-      const l = toCm(size.x);
-      const h = toCm(size.y);
-      const b = toCm(size.z);
+      // Calculate L, B, H with Scale Factor
+      const l = toCm(size.x * scaleFactor);
+      const h = toCm(size.y * scaleFactor);
+      const b = toCm(size.z * scaleFactor);
       setDims({ l, b, h });
     }
-  }, [points]);
+  }, [points, scaleFactor]);
 
   const handleReset = () => {
     setPoints([]);
@@ -428,7 +430,7 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
           )}
       </div>
       
-      {/* Dynamic Hint */}
+      {/* Dynamic Hint & Scale Control */}
       <div style={{ 
         position: 'absolute', 
         bottom: '150px', 
@@ -438,6 +440,25 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
         padding: '0 20px',
         zIndex: 10
       }}>
+        {points.length > 0 && (
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            gap: '15px',
+            marginBottom: '15px'
+          }}>
+            <button 
+              onClick={() => setScaleFactor(prev => Math.max(0.1, prev - 0.2))}
+              style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: 'none', borderRadius: '50%', width: '40px', height: '40px', fontSize: '20px' }}>-</button>
+            <div style={{ color: 'white', background: 'rgba(0,0,0,0.5)', padding: '5px 15px', borderRadius: '15px' }}>
+              Scale: {scaleFactor.toFixed(1)}x
+            </div>
+            <button 
+              onClick={() => setScaleFactor(prev => prev + 0.2)}
+              style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: 'none', borderRadius: '50%', width: '40px', height: '40px', fontSize: '20px' }}>+</button>
+          </div>
+        )}
         <div style={{
           background: 'rgba(0,0,0,0.7)',
           padding: '12px 24px',
@@ -449,7 +470,7 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
           backdropFilter: 'blur(10px)',
           border: '1px solid rgba(255,255,255,0.05)'
         }}>
-          {points.length === 0 ? "Align reticle with the first corner" : "Mark another corner to see LBH"}
+          {points.length === 0 ? "Align reticle and mark corners" : "Use +/- to calibrate scale"}
         </div>
       </div>
     </div>
