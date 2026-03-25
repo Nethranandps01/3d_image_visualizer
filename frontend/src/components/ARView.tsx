@@ -109,6 +109,21 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
     directionalLight.position.set(5, 10, 5);
     scene.add(directionalLight);
 
+    // --- NEW: Motion Tracking ---
+    const handleOrientation = (event: DeviceOrientationEvent) => {
+      if (!cameraRef.current) return;
+      const alpha = event.alpha ? THREE.MathUtils.degToRad(event.alpha) : 0; // Z
+      const beta = event.beta ? THREE.MathUtils.degToRad(event.beta) : 0;   // X
+      const gamma = event.gamma ? THREE.MathUtils.degToRad(event.gamma) : 0; // Y
+
+      // Simple rotation mapping (may need refinement for different device orientations)
+      cameraRef.current.rotation.set(beta, alpha, -gamma, 'YXZ');
+    };
+
+    if (window.DeviceOrientationEvent) {
+      window.addEventListener('deviceorientation', handleOrientation);
+    }
+
     const animate = () => {
       requestAnimationFrame(animate);
       if (rendererRef.current && sceneRef.current && cameraRef.current) {
@@ -127,6 +142,7 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
     window.addEventListener('resize', handleResize);
 
     return () => {
+      window.removeEventListener('deviceorientation', handleOrientation);
       window.removeEventListener('resize', handleResize);
       if (rendererRef.current) rendererRef.current.dispose();
       if (containerRef.current && rendererRef.current) {
