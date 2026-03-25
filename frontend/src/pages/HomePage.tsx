@@ -10,30 +10,22 @@ import {
   IonButton,
   IonIcon,
   IonSpinner,
-  IonText,
-  IonFab,
-  IonFabButton,
-  IonList,
-  IonItem,
-  IonLabel,
   IonChip,
-  IonRefresher,
-  IonRefresherContent,
-  RefresherEventDetail,
   useIonToast,
-  IonActionSheet,
 } from '@ionic/react';
 import {
   camera,
   images,
-  refresh,
+  refreshOutline,
   checkmarkCircle,
   alertCircle,
-  documentTextOutline,
+  resizeOutline,
+  scanOutline,
 } from 'ionicons/icons';
-import { useState, useCallback } from 'react';
-import { capturePhoto, pickFromGallery } from '../services/camera';
+import { useState, useCallback, useEffect } from 'react';
+import { capturePhoto, pickFromGallery, requestCameraPermission } from '../services/camera';
 import { measureImage, MeasurementResponse, MeasuredObject } from '../services/api';
+import ARView from '../components/ARView';
 
 const HomePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -42,9 +34,14 @@ const HomePage: React.FC = () => {
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [measurements, setMeasurements] = useState<MeasuredObject[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [showActionSheet, setShowActionSheet] = useState(false);
+  const [isARMode, setIsARMode] = useState(false);
   
   const [presentToast] = useIonToast();
+
+  // Request camera permission on mount
+  useEffect(() => {
+    requestCameraPermission();
+  }, []);
 
   const showToast = useCallback((message: string, color: 'success' | 'danger' | 'warning' = 'success') => {
     presentToast({
@@ -90,12 +87,13 @@ const HomePage: React.FC = () => {
     try {
       const image = await capturePhoto();
       await processImage(image.base64String, image.dataUrl);
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('cancelled')) {
-        return; // User cancelled, do nothing
+    } catch (error: unknown) {
+      const err = error as Error;
+      if (err.message && (err.message.includes('cancelled') || err.message.includes('cancel'))) {
+        return;
       }
-      const message = error instanceof Error ? error.message : 'Failed to capture photo';
-      showToast(message, 'danger');
+      console.error('Camera error:', error);
+      showToast(err.message || 'Failed to capture photo', 'danger');
     }
   }, [processImage, showToast]);
 
@@ -103,209 +101,400 @@ const HomePage: React.FC = () => {
     try {
       const image = await pickFromGallery();
       await processImage(image.base64String, image.dataUrl);
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('cancelled')) {
-        return; // User cancelled, do nothing
+    } catch (error: unknown) {
+      const err = error as Error;
+      if (err.message && (err.message.includes('cancelled') || err.message.includes('cancel'))) {
+        return;
       }
-      const message = error instanceof Error ? error.message : 'Failed to load image';
-      showToast(message, 'danger');
+      console.error('Gallery error:', error);
+      showToast(err.message || 'Failed to load image', 'danger');
     }
   }, [processImage, showToast]);
 
-  const handleRefresh = useCallback((event: CustomEvent<RefresherEventDetail>) => {
+  const handleReset = useCallback(() => {
     setCapturedImage(null);
     setResultImage(null);
     setMeasurements([]);
     setErrorMessage(null);
-    event.detail.complete();
   }, []);
 
-  const renderEmptyState = () => (
-    <div className="empty-state">
-      <IonIcon icon={camera} />
-      <h3>Measure Objects</h3>
-      <p>
-        Place objects on an A4 paper and take a photo to measure their dimensions
-      </p>
-      <IonButton 
-        onClick={() => setShowActionSheet(true)}
-        style={{ marginTop: '20px' }}
-      >
-        <IonIcon slot="start" icon={camera} />
-        Get Started
-      </IonButton>
+  const handleARConfirm = (dims: { width: number; height: number; length: number }) => {
+    const newMeasurement: MeasuredObject = {
+      width_cm: dims.width,
+      height_cm: dims.height,
+      bounding_box: [0, 0, 0, 0] // Mock bounding box for AR
+    };
+    
+    // In AR mode, we might also want to store 'length' if we update the schema, 
+    // but for now we'll stick to the 2D schema with an additional field if needed.
+    setMeasurements([newMeasurement]);
+    setIsARMode(false);
+    showToast('3D Measurement Captured', 'success');
+  };
+
+  // Landing screen
+  const renderLandingScreen = () => (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      minHeight: '100%',
+      padding: '20px',
+      background: '#f5f7fb',
+    }}>
+      {/* Hero Section */}
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        padding: '40px 20px',
+      }}>
+        <div style={{
+          width: '120px',
+          height: '120px',
+          borderRadius: '30px',
+          background: '#ffffff',
+          border: '1px solid #e5e7eb',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '30px',
+          boxShadow: '0 10px 30px rgba(15, 23, 42, 0.08)',
+        }}>
+          <IonIcon icon={resizeOutline} style={{ fontSize: '60px', color: '#0f172a' }} />
+        </div>
+        
+        <h1 style={{
+          color: '#0f172a',
+          fontSize: '32px',
+          fontWeight: '700',
+          margin: '0 0 12px 0',
+        }}>
+          Object Measure
+        </h1>
+        
+        <p style={{
+          color: '#475569',
+          fontSize: '16px',
+          margin: '0 0 40px 0',
+          maxWidth: '280px',
+          lineHeight: '1.5',
+        }}>
+          Measure real objects instantly using your camera and an A4 paper reference
+        </p>
+      </div>
+
+      {/* Instructions Card */}
+      <div style={{
+        background: '#ffffff',
+        borderRadius: '20px',
+        padding: '24px',
+        marginBottom: '24px',
+        border: '1px solid #e5e7eb',
+        boxShadow: '0 10px 30px rgba(15, 23, 42, 0.06)',
+      }}>
+        <h3 style={{ color: '#0f172a', margin: '0 0 16px 0', fontSize: '18px' }}>
+          How it works
+        </h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {[
+            { num: '1', text: 'Place objects on an A4 paper' },
+            { num: '2', text: 'Take a photo from above' },
+            { num: '3', text: 'Get measurements in cm' },
+          ].map((step) => (
+            <div key={step.num} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '50%',
+                background: '#0f172a',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontSize: '14px',
+                fontWeight: '600',
+              }}>
+                {step.num}
+              </div>
+                <span style={{ color: '#334155', fontSize: '15px' }}>
+                  {step.text}
+                </span>
+              </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingBottom: '20px' }}>
+        <IonButton
+          expand="block"
+          size="large"
+          onClick={handleCapturePhoto}
+          style={{
+            '--background': '#0f172a',
+            '--color': '#ffffff',
+            '--border-radius': '16px',
+            '--box-shadow': '0 10px 24px rgba(15, 23, 42, 0.15)',
+            height: '56px',
+            fontSize: '17px',
+            fontWeight: '600',
+          }}
+        >
+          <IonIcon slot="start" icon={camera} />
+          Take Photo
+        </IonButton>
+        
+        <IonButton
+          expand="block"
+          size="large"
+          fill="outline"
+          onClick={handlePickFromGallery}
+          style={{
+            '--border-radius': '16px',
+            '--border-color': '#cbd5e1',
+            '--color': '#0f172a',
+            height: '56px',
+            fontSize: '17px',
+            fontWeight: '600',
+          }}
+        >
+          <IonIcon slot="start" icon={images} />
+          Choose from Gallery
+        </IonButton>
+
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          marginTop: '12px'
+        }}>
+          <div style={{ flex: 1, height: '1px', background: '#e2e8f0' }} />
+          <span style={{ color: '#94a3b8', fontSize: '13px', fontWeight: '500' }}>OR TRY 3D</span>
+          <div style={{ flex: 1, height: '1px', background: '#e2e8f0' }} />
+        </div>
+
+        <IonButton
+          expand="block"
+          size="large"
+          fill="clear"
+          onClick={() => setIsARMode(true)}
+          style={{
+            '--color': '#0f172a',
+            height: '56px',
+            fontSize: '17px',
+            fontWeight: '600',
+            marginTop: '8px'
+          }}
+        >
+          <IonIcon slot="start" icon={scanOutline} />
+          Switch to 3D AR Mode
+        </IonButton>
+      </div>
     </div>
   );
 
-  const renderInstructions = () => (
-    <IonCard className="measurement-card">
-      <IonCardContent>
-        <div className="instructions">
-          <IonIcon 
-            icon={documentTextOutline} 
-            style={{ fontSize: '48px', color: 'var(--ion-color-primary)' }} 
-          />
-          <h2>How to Use</h2>
-          <ol className="instructions-list">
-            <li>Place a white <strong>A4 paper</strong> on a flat surface</li>
-            <li>Put the objects you want to measure <strong>on the paper</strong></li>
-            <li>Take a photo with <strong>good lighting</strong></li>
-            <li>Make sure the <strong>entire paper is visible</strong></li>
-            <li>Objects should be <strong>rectangular</strong> for best results</li>
-          </ol>
-        </div>
-      </IonCardContent>
-    </IonCard>
-  );
-
+  // Results screen
   const renderResults = () => (
-    <>
+    <div style={{ padding: '16px', background: '#f5f7fb', minHeight: '100%' }}>
       {/* Result Image */}
       {resultImage && (
-        <IonCard className="measurement-card">
-          <IonCardContent style={{ padding: '8px' }}>
-            <img 
-              src={resultImage} 
-              alt="Measurement result" 
-              className="result-image"
-            />
-          </IonCardContent>
+        <IonCard style={{
+          margin: '0 0 16px 0',
+          borderRadius: '20px',
+          overflow: 'hidden',
+          background: '#ffffff',
+          border: '1px solid #e5e7eb',
+        }}>
+          <img 
+            src={resultImage} 
+            alt="Measurement result" 
+            style={{ width: '100%', display: 'block' }}
+          />
         </IonCard>
       )}
 
       {/* Measurements List */}
       {measurements.length > 0 && (
-        <IonCard className="measurement-card">
+        <IonCard style={{
+          margin: '0 0 16px 0',
+          borderRadius: '20px',
+          background: '#ffffff',
+          border: '1px solid #e5e7eb',
+        }}>
           <IonCardContent>
-            <IonText>
-              <h2 style={{ margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <IonIcon icon={checkmarkCircle} color="success" />
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              marginBottom: '20px',
+            }}>
+              <IonIcon icon={checkmarkCircle} style={{ color: '#16a34a', fontSize: '24px' }} />
+              <h2 style={{ margin: 0, color: '#0f172a', fontSize: '20px' }}>
                 Measurements
               </h2>
-            </IonText>
-            <IonList>
-              {measurements.map((obj, index) => (
-                <IonItem key={index} className="object-item">
-                  <IonLabel>
-                    <IonChip color="primary">Object {index + 1}</IonChip>
-                    <div className="object-dimensions" style={{ marginTop: '12px' }}>
-                      <div className="dimension">
-                        <div className="dimension-value">{obj.width_cm}</div>
-                        <div className="dimension-label">Width (cm)</div>
-                      </div>
-                      <div className="dimension">
-                        <div className="dimension-value">{obj.height_cm}</div>
-                        <div className="dimension-label">Height (cm)</div>
-                      </div>
+            </div>
+            
+            {measurements.map((obj, index) => (
+              <div
+                key={index}
+                style={{
+                  background: '#f8fafc',
+                  borderRadius: '16px',
+                  padding: '16px',
+                  marginBottom: index < measurements.length - 1 ? '12px' : 0,
+                  border: '1px solid #e2e8f0',
+                }}
+              >
+                <IonChip style={{
+                  '--background': '#0f172a',
+                  '--color': 'white',
+                  marginBottom: '12px',
+                }}>
+                  Object {index + 1}
+                </IonChip>
+                
+                <div style={{ display: 'flex', gap: '20px' }}>
+                  <div style={{ flex: 1, textAlign: 'center' }}>
+                    <div style={{
+                      fontSize: '32px',
+                      fontWeight: '700',
+                      color: '#0f172a',
+                    }}>
+                      {obj.width_cm}
                     </div>
-                  </IonLabel>
-                </IonItem>
-              ))}
-            </IonList>
+                    <div style={{ color: '#64748b', fontSize: '13px' }}>
+                      Width (cm)
+                    </div>
+                  </div>
+                  <div style={{
+                    width: '1px',
+                    background: 'rgba(255,255,255,0.1)',
+                  }} />
+                  <div style={{ flex: 1, textAlign: 'center' }}>
+                    <div style={{
+                      fontSize: '32px',
+                      fontWeight: '700',
+                      color: '#0f172a',
+                    }}>
+                      {obj.height_cm}
+                    </div>
+                    <div style={{ color: '#64748b', fontSize: '13px' }}>
+                      Height (cm)
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </IonCardContent>
         </IonCard>
       )}
 
       {/* Error Message */}
       {errorMessage && !measurements.length && (
-        <IonCard className="measurement-card" color="danger">
+        <IonCard style={{
+          margin: '0 0 16px 0',
+          borderRadius: '20px',
+          background: '#fff1f2',
+          border: '1px solid #fecdd3',
+        }}>
           <IonCardContent>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <IonIcon icon={alertCircle} style={{ fontSize: '32px' }} />
+              <IonIcon icon={alertCircle} style={{ fontSize: '32px', color: '#dc2626' }} />
               <div>
-                <IonText>
-                  <h3 style={{ margin: '0 0 4px 0' }}>Detection Failed</h3>
-                </IonText>
-                <IonText>
-                  <p style={{ margin: 0 }}>{errorMessage}</p>
-                </IonText>
+                <h3 style={{ margin: '0 0 4px 0', color: '#0f172a' }}>Detection Failed</h3>
+                <p style={{ margin: 0, color: '#475569' }}>{errorMessage}</p>
               </div>
             </div>
           </IonCardContent>
         </IonCard>
       )}
 
-      {/* Retry Button */}
-      <div style={{ padding: '16px', textAlign: 'center' }}>
-        <IonButton 
+      {/* Action Buttons */}
+      <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+        <IonButton
           expand="block"
-          onClick={() => setShowActionSheet(true)}
+          onClick={handleReset}
+          fill="outline"
+          style={{
+            flex: 1,
+            '--border-radius': '14px',
+            '--border-color': '#cbd5e1',
+            '--color': '#0f172a',
+            height: '50px',
+          }}
         >
-          <IonIcon slot="start" icon={refresh} />
-          Measure Again
+          <IonIcon slot="start" icon={refreshOutline} />
+          Reset
+        </IonButton>
+        
+        <IonButton
+          expand="block"
+          onClick={handleCapturePhoto}
+          style={{
+            flex: 2,
+            '--background': '#0f172a',
+            '--color': '#ffffff',
+            '--border-radius': '14px',
+            height: '50px',
+          }}
+        >
+          <IonIcon slot="start" icon={camera} />
+          New Photo
         </IonButton>
       </div>
-    </>
+    </div>
   );
 
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonTitle>Object Measure</IonTitle>
+        <IonToolbar style={{
+          '--background': '#ffffff',
+          '--color': '#0f172a',
+          '--border-color': '#e5e7eb',
+        }}>
+          <IonTitle>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <IonIcon icon={scanOutline} />
+              Object Measure
+            </div>
+          </IonTitle>
         </IonToolbar>
       </IonHeader>
 
-      <IonContent fullscreen>
-        <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
-          <IonRefresherContent />
-        </IonRefresher>
-
-        <IonHeader collapse="condense">
-          <IonToolbar>
-            <IonTitle size="large">Object Measure</IonTitle>
-          </IonToolbar>
-        </IonHeader>
-
+      <IonContent fullscreen style={{ '--background': '#f5f7fb' }}>
         {/* Loading Overlay */}
         {isLoading && (
-          <div className="loading-overlay">
-            <IonSpinner name="crescent" />
-            <p>{loadingText}</p>
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.85)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+          }}>
+            <IonSpinner name="crescent" style={{ width: '60px', height: '60px', color: '#0f172a' }} />
+            <p style={{ color: 'white', marginTop: '20px', fontSize: '16px' }}>{loadingText}</p>
           </div>
         )}
 
         {/* Main Content */}
-        {!capturedImage && !resultImage ? (
-          <>
-            {renderEmptyState()}
-            {renderInstructions()}
-          </>
+        {isARMode ? (
+          <ARView 
+            onConfirm={handleARConfirm} 
+            onClose={() => setIsARMode(false)} 
+          />
         ) : (
-          renderResults()
+          !capturedImage && !resultImage ? renderLandingScreen() : renderResults()
         )}
-
-        {/* Floating Action Button */}
-        {!isLoading && (capturedImage || resultImage) && (
-          <IonFab vertical="bottom" horizontal="end" slot="fixed">
-            <IonFabButton onClick={() => setShowActionSheet(true)}>
-              <IonIcon icon={camera} />
-            </IonFabButton>
-          </IonFab>
-        )}
-
-        {/* Action Sheet for Camera/Gallery */}
-        <IonActionSheet
-          isOpen={showActionSheet}
-          onDidDismiss={() => setShowActionSheet(false)}
-          header="Select Image Source"
-          buttons={[
-            {
-              text: 'Take Photo',
-              icon: camera,
-              handler: handleCapturePhoto,
-            },
-            {
-              text: 'Choose from Gallery',
-              icon: images,
-              handler: handlePickFromGallery,
-            },
-            {
-              text: 'Cancel',
-              role: 'cancel',
-            },
-          ]}
-        />
       </IonContent>
     </IonPage>
   );
