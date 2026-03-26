@@ -14,7 +14,7 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [points, setPoints] = useState<Vector3D[]>([]);
   const [dims, setDims] = useState({ l: 0, b: 0, h: 0 });
-  const [scaleFactor, setScaleFactor] = useState(2.5); // Default scale multiplier
+  const [scaleFactor, setScaleFactor] = useState(11); // Initial scale multiplier set to 11
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -24,7 +24,8 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const markersRef = useRef<THREE.Group | null>(null);
   const linesRef = useRef<THREE.Group | null>(null);
-// ... (Camera Feed and Three.js init remains same)
+
+  // ... (Camera Feed and Three.js init remains same)
 
   // Camera Feed Logic
   useEffect(() => {
@@ -118,7 +119,7 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
       const beta = event.beta ? THREE.MathUtils.degToRad(event.beta) : 0;   // X
       const gamma = event.gamma ? THREE.MathUtils.degToRad(event.gamma) : 0; // Y
 
-      // Simple rotation mapping (may need refinement for different device orientations)
+      // Simple rotation mapping
       cameraRef.current.rotation.set(beta, alpha, -gamma, 'YXZ');
     };
 
@@ -154,10 +155,8 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
   }, []);
 
   const addPoint = useCallback(() => {
-    if (!cameraRef.current || !sceneRef.current || !markersRef.current) return;
+    if (!cameraRef.current || !sceneRef.current || !markersRef.current || points.length >= 4) return;
 
-    // We place points at a fixed depth to simulate 3D marking
-    // Increased default depth to -5 for better room-scale representation
     const vector = new THREE.Vector3(0, 0, -5); 
     vector.unproject(cameraRef.current);
     
@@ -171,13 +170,59 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
     sphere.position.copy(vector);
     markersRef.current.add(sphere);
 
+    if (linesRef.current) linesRef.current.clear();
+
+    const p1 = newPoints[0];
+    let l = dims.l, b = dims.b, h = dims.h;
+
+    if (newPoints.length === 2) {
+      // Point 2: Length (X displacement)
+      l = toCm(Math.abs(newPoints[1].x - p1.x) * scaleFactor);
+    } else if (newPoints.length === 3) {
+      // Point 3: Breadth (Y displacement)
+      l = toCm(Math.abs(newPoints[1].x - p1.x) * scaleFactor);
+      b = toCm(Math.abs(newPoints[2].y - p1.y) * scaleFactor);
+    } else if (newPoints.length === 4) {
+      // Point 4: Height (Z displacement)
+      l = toCm(Math.abs(newPoints[1].x - p1.x) * scaleFactor);
+      b = toCm(Math.abs(newPoints[2].y - p1.y) * scaleFactor);
+      h = toCm(Math.abs(newPoints[3].z - p1.z) * scaleFactor);
+    }
+    setDims({ l, b, h });
+
+    // 3D Visualization Logic
     if (newPoints.length >= 2) {
-      if (linesRef.current) linesRef.current.clear();
       const box = new THREE.Box3();
-      newPoints.forEach(p => box.expandByPoint(new THREE.Vector3(p.x, p.y, p.z)));
       
-      if (newPoints.length === 2 && box.max.y === box.min.y) {
-        box.max.y += 0.8; 
+      // We'll create a box that grows based on the points
+      const p1Vec = new THREE.Vector3(p1.x, p1.y, p1.z);
+      box.expandByPoint(p1Vec);
+
+      if (newPoints.length === 2) {
+        // Just show a line for length
+        const p2Vec = new THREE.Vector3(newPoints[1].x, p1.y, p1.z);
+        box.expandByPoint(p2Vec);
+      } else if (newPoints.length === 3) {
+        // Show a rectangle for base (Length x Breadth)
+        const p2Vec = new THREE.Vector3(newPoints[1].x, p1.y, p1.z);
+        const p3Vec = new THREE.Vector3(newPoints[1].x, newPoints[2].y, p1.z);
+        box.expandByPoint(p2Vec);
+        box.expandByPoint(p3Vec);
+        box.expandByPoint(new THREE.Vector3(p1.x, newPoints[2].y, p1.z));
+      } else if (newPoints.length === 4) {
+        // Show the full 3D box
+        const p2Vec = new THREE.Vector3(newPoints[1].x, p1.y, p1.z);
+        const p3Vec = new THREE.Vector3(newPoints[1].x, newPoints[2].y, p1.z);
+        const p4Vec = new THREE.Vector3(newPoints[1].x, newPoints[2].y, newPoints[3].z);
+        
+        box.expandByPoint(p2Vec);
+        box.expandByPoint(p3Vec);
+        box.expandByPoint(p4Vec);
+        // Expand by all corners
+        box.expandByPoint(new THREE.Vector3(p1.x, p1.y, newPoints[3].z));
+        box.expandByPoint(new THREE.Vector3(newPoints[1].x, p1.y, newPoints[3].z));
+        box.expandByPoint(new THREE.Vector3(p1.x, newPoints[2].y, p1.z));
+        box.expandByPoint(new THREE.Vector3(p1.x, newPoints[2].y, newPoints[3].z));
       }
 
       const center = new THREE.Vector3();
@@ -185,7 +230,12 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
       const size = new THREE.Vector3();
       box.getSize(size);
       
-      const boxGeom = new THREE.BoxGeometry(size.x, size.y, size.z);
+      // Ensure size is non-zero for geometry creation
+      const boxGeom = new THREE.BoxGeometry(
+        Math.max(size.x, 0.01), 
+        Math.max(size.y, 0.01), 
+        Math.max(size.z, 0.01)
+      );
       const boxMat = new THREE.MeshPhongMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.3 });
       const boxMesh = new THREE.Mesh(boxGeom, boxMat);
       boxMesh.position.copy(center);
@@ -195,14 +245,8 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
         linesRef.current.add(boxMesh);
         linesRef.current.add(wireframe);
       }
-
-      // Calculate L, B, H with Scale Factor
-      const l = toCm(size.x * scaleFactor);
-      const h = toCm(size.y * scaleFactor);
-      const b = toCm(size.z * scaleFactor);
-      setDims({ l, b, h });
     }
-  }, [points, scaleFactor]);
+  }, [points, scaleFactor, dims]);
 
   const handleReset = () => {
     setPoints([]);
@@ -212,7 +256,7 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
   };
 
   const handleConfirm = () => {
-    if (points.length >= 2) {
+    if (points.length >= 4) {
       onConfirm({
         width: dims.b,
         height: dims.h,
@@ -328,7 +372,11 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
             border: '1px solid rgba(255,255,255,0.1)',
             fontWeight: '600'
           }}>
-            {points.length === 0 ? 'Mark First Corner' : `Mark point ${points.length + 1}...`}
+            {points.length === 0 ? 'Step 1: Mark Base Point' : 
+             points.length === 1 ? 'Step 2: Mark Length' :
+             points.length === 2 ? 'Step 3: Mark Breadth' :
+             points.length === 3 ? 'Step 4: Mark Height' :
+             'Measurement Complete'}
           </div>
 
           <IonFabButton size="small" color="light" onClick={handleReset} style={{ '--background': 'rgba(255,255,255,0.2)', '--backdrop-filter': 'blur(10px)' }}>
@@ -359,17 +407,17 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
         }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ color: '#94a3b8', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>Length</div>
-            <div style={{ color: '#3b82f6', fontSize: '20px', fontWeight: '800' }}>{dims.l} <span style={{fontSize: '12px'}}>cm</span></div>
+            <div style={{ color: points.length >= 2 ? '#3b82f6' : '#475569', fontSize: '20px', fontWeight: '800' }}>{dims.l} <span style={{fontSize: '12px'}}>cm</span></div>
           </div>
           <div style={{ width: '1px', height: '30px', background: 'rgba(255,255,255,0.1)' }} />
           <div style={{ textAlign: 'center' }}>
             <div style={{ color: '#94a3b8', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>Breadth</div>
-            <div style={{ color: '#3b82f6', fontSize: '20px', fontWeight: '800' }}>{dims.b} <span style={{fontSize: '12px'}}>cm</span></div>
+            <div style={{ color: points.length >= 3 ? '#3b82f6' : '#475569', fontSize: '20px', fontWeight: '800' }}>{dims.b} <span style={{fontSize: '12px'}}>cm</span></div>
           </div>
           <div style={{ width: '1px', height: '30px', background: 'rgba(255,255,255,0.1)' }} />
           <div style={{ textAlign: 'center' }}>
             <div style={{ color: '#94a3b8', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>Height</div>
-            <div style={{ color: '#3b82f6', fontSize: '20px', fontWeight: '800' }}>{dims.h} <span style={{fontSize: '12px'}}>cm</span></div>
+            <div style={{ color: points.length >= 4 ? '#3b82f6' : '#475569', fontSize: '20px', fontWeight: '800' }}>{dims.h} <span style={{fontSize: '12px'}}>cm</span></div>
           </div>
         </div>
       )}
@@ -403,8 +451,9 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
       <div style={{ position: 'absolute', bottom: '40px', left: 0, right: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '24px', zIndex: 20 }}>
           <IonFabButton 
             onClick={addPoint} 
+            disabled={points.length >= 4}
             style={{ 
-              '--background': '#ffffff', 
+              '--background': points.length >= 4 ? '#475569' : '#ffffff', 
               '--color': '#0f172a',
               width: '90px',
               height: '90px',
@@ -414,7 +463,7 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
             <IonIcon icon={addOutline} style={{ fontSize: '45px' }} />
           </IonFabButton>
 
-          {points.length >= 2 && (
+          {points.length >= 4 && (
              <IonFabButton 
                color="success" 
                onClick={handleConfirm}
@@ -470,7 +519,11 @@ const ARView: React.FC<ARViewProps> = ({ onConfirm, onClose }) => {
           backdropFilter: 'blur(10px)',
           border: '1px solid rgba(255,255,255,0.05)'
         }}>
-          {points.length === 0 ? "Align reticle and mark corners" : "Use +/- to calibrate scale"}
+          {points.length === 0 ? "Align reticle and mark base point" : 
+           points.length === 1 ? "Move and mark the length" :
+           points.length === 2 ? "Move and mark the breadth" :
+           points.length === 3 ? "Move and mark the height" :
+           "Confirm measurement"}
         </div>
       </div>
     </div>
